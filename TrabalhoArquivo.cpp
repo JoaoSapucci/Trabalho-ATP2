@@ -131,6 +131,101 @@ void ConsultaProd(void){
 	}
 	fclose(Ptr);	
 }
+int BuscaSentinela(FILE *Ptr, char Descr[],char nomearq[])
+{
+	TpProduto RP;
+	int pos,TL;
+	fseek(Ptr,0,2);
+	TL = ftell(Ptr);
+	strcpy(RP.Descr,Descr);
+	fwrite(&RP,sizeof(RP),1,Ptr);
+	fseek(Ptr,0,0);
+	fread(&RP,sizeof(RP),1,Ptr);
+	while(strcmp(Descr,RP.Descr)!= 0)
+		fread(&RP,sizeof(RP),1,Ptr);
+	pos = ftell(Ptr) - sizeof(RP);
+	
+	FILE *aux = fopen("aux.dat","wb+");
+	fseek(Ptr,0,0);
+	while(ftell(Ptr) != TL)
+	{
+		fread(&RP,sizeof(RP),1,Ptr);
+		fwrite(&RP,sizeof(RP),1,aux);
+	}
+	fclose(aux);
+	fclose(Ptr);
+	remove(nomearq);
+	rename("aux.dat",nomearq);
+	if(pos < TL)
+		return pos;
+	else
+		return -1;
+}
+void SelecaoDireta(FILE *Ptr,FILE *aux)
+{
+	TpProduto RP,arm[2];
+	int posmaior,TL;
+	fseek(Ptr,0,2);
+	TL = ftell(Ptr);
+	fseek(Ptr,0,0);
+	while(ftell(Ptr) != TL)
+	{
+		fread(&RP,sizeof(RP),1,Ptr);
+		fwrite(&RP,sizeof(RP),1,aux);			
+	}
+	while(TL>0)
+	{
+		posmaior = MaiorPos(aux,TL);
+		if(posmaior<TL-sizeof(RP))
+		{
+			fseek(aux,posmaior,0);
+			fread(&arm[0],sizeof(arm[0]),1,aux);
+			fseek(aux,TL-sizeof(RP),0);
+			fread(&arm[1],sizeof(arm[1]),1,aux); 
+			fseek(aux,posmaior,0);
+			fwrite(&arm[1],sizeof(arm[1]),1,aux);
+			fseek(aux,TL-sizeof(RP),0);
+			fwrite(&arm[0],sizeof(arm[0]),1,aux);
+		}
+		TL = TL - sizeof(RP);
+	}
+}
+int MaiorPos(FILE *Ptr,int TL)
+{
+	TpProduto RP;
+	int posmaior;
+	float maior;
+	fseek(Ptr,0,0);
+	fread(&RP,sizeof(RP),1,Ptr);
+	maior = RP.Preco;
+	posmaior = 0;
+	while(ftell(Ptr) < TL)
+	{
+		fread(&RP,sizeof(RP),1,Ptr);
+		if(maior<RP.Preco)
+		{
+			maior = RP.Preco;
+			posmaior = ftell(Ptr) - sizeof(RP);
+		}
+	}
+	return posmaior;
+}
+void RelatorioPreco(FILE *Ptr)
+{
+	FILE *aux = fopen("aux.dat","wb+");
+	SelecaoDireta(Ptr,aux);
+	TpProduto RP;
+	fseek(aux,0,2);
+	int TL = ftell(aux);
+	while(TL>0)
+	{
+		fseek(aux,TL - sizeof(RP),0);
+		fread(&RP,sizeof(RP),1,aux);
+		printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
+		TL = TL - sizeof(RP);
+	}
+	fclose(aux);
+}
 
 
 
