@@ -11,6 +11,19 @@ struct TpProduto    //32 B
     char Descr[20];
     float Preco;
 };
+void ConsultaDescr(void);
+void RelatorioDescr(void);
+void RelatorioEstoque(void);
+void BubbleSort(FILE *Ptr, FILE *aux2);
+void RelatorioPreco(void);
+int MaiorPos(FILE *Ptr,int TL,int modo);
+void SelecaoDireta(FILE *Ptr,FILE *aux,int modo);
+int BuscaSentinela(FILE *Ptr, char Descr[],char nomearq[]);
+void ConsultaProd(void);
+void CadastroProd(void);
+int BuscaBinaria(FILE *Ptr,int codigo);
+void InsertionSort(FILE *Ptr);
+int BuscaSeqInd(FILE *Ptr,int codigo);
 
 int BuscaSeqInd(FILE *Ptr,int codigo){
 	TpProduto RP;
@@ -73,7 +86,6 @@ void CadastroProd(void){
 	FILE *PtrProd = fopen("Produtos.dat","rb+");
 	if(PtrProd == NULL)
 		PtrProd = fopen("Produtos.dat","wb+");
-		
 	clrscr();
 	printf("*** Cadastro de Produtos ***");
 	printf("Insira o codigo do produto: ");
@@ -106,8 +118,8 @@ void ConsultaProd(void){
 	FILE *Ptr = fopen("Produtos.dat","rb");
 	clrscr();
 	fseek(Ptr,0,SEEK_END);
-	if(!ftell(Ptr))
-		printf("Nenhum Produto foi Cadastrado!\n");
+	if(!ftell(Ptr) || Ptr == NULL )
+		printf("Nenhum Produto foi Cadastrado ou Arquivo Inexistente!\n");
 	else{
 		printf("*** Consulta Produto ***");
 		printf("Insira o codigo: ");
@@ -161,7 +173,7 @@ int BuscaSentinela(FILE *Ptr, char Descr[],char nomearq[])
 	else
 		return -1;
 }
-void SelecaoDireta(FILE *Ptr,FILE *aux)
+void SelecaoDireta(FILE *Ptr,FILE *aux,int modo)
 {
 	TpProduto RP,arm[2];
 	int posmaior,TL;
@@ -175,7 +187,7 @@ void SelecaoDireta(FILE *Ptr,FILE *aux)
 	}
 	while(TL>0)
 	{
-		posmaior = MaiorPos(aux,TL);
+		posmaior = MaiorPos(aux,TL,modo);
 		if(posmaior<TL-sizeof(RP))
 		{
 			fseek(aux,posmaior,0);
@@ -190,41 +202,68 @@ void SelecaoDireta(FILE *Ptr,FILE *aux)
 		TL = TL - sizeof(RP);
 	}
 }
-int MaiorPos(FILE *Ptr,int TL)
+int MaiorPos(FILE *Ptr,int TL,int modo)
 {
 	TpProduto RP;
 	int posmaior;
-	float maior;
 	fseek(Ptr,0,0);
 	fread(&RP,sizeof(RP),1,Ptr);
-	maior = RP.Preco;
 	posmaior = 0;
-	while(ftell(Ptr) < TL)
+	if(modo == 0)
 	{
-		fread(&RP,sizeof(RP),1,Ptr);
-		if(maior<RP.Preco)
+	
+		float maior;
+		maior = RP.Preco;
+		while(ftell(Ptr) < TL)
 		{
-			maior = RP.Preco;
-			posmaior = ftell(Ptr) - sizeof(RP);
+			fread(&RP,sizeof(RP),1,Ptr);
+			if(maior<RP.Preco)
+			{
+				maior = RP.Preco;
+				posmaior = ftell(Ptr) - sizeof(RP);
+			}
 		}
+	}
+	else
+	{
+	
+		char maior[30];
+		strcpy(maior,RP.Descr);
+		while(ftell(Ptr) < TL)
+		{
+			fread(&RP,sizeof(RP),1,Ptr);
+			if(stricmp(maior,RP.Descr)<0)
+			{
+				strcpy(maior,RP.Descr);
+				posmaior = ftell(Ptr) - sizeof(RP);
+			}
+		}
+	
 	}
 	return posmaior;
 }
-void RelatorioPreco(FILE *Ptr)
+void RelatorioPreco(void)
 {
-	FILE *aux = fopen("aux.dat","wb+");
-	SelecaoDireta(Ptr,aux);
-	TpProduto RP;
-	fseek(aux,0,2);
-	int TL = ftell(aux);
-	while(TL>0)
+	FILE *Ptr = fopen("Produtos.dat","rb+");
+	if(!ftell(Ptr) || Ptr == NULL )
+		printf("Nenhum Produto foi Cadastrado ou Arquivo Inexistente!\n");
+	else
 	{
-		fseek(aux,TL - sizeof(RP),0);
-		fread(&RP,sizeof(RP),1,aux);
-		printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
-		TL = TL - sizeof(RP);
+		FILE *aux = fopen("aux.dat","wb+");
+		SelecaoDireta(Ptr,aux,0);
+		TpProduto RP;
+		fseek(aux,0,2);
+		int TL = ftell(aux);
+		while(TL>0)
+		{
+			fseek(aux,TL - sizeof(RP),0);
+			fread(&RP,sizeof(RP),1,aux);
+			printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
+			TL = TL - sizeof(RP);
+		}
+		fclose(aux);
 	}
-	fclose(aux);
+	fclose(Ptr);
 }
 void BubbleSort(FILE *Ptr, FILE *aux2)
 {
@@ -255,84 +294,73 @@ void BubbleSort(FILE *Ptr, FILE *aux2)
         }
     }
 }
-void RelatorioEstoque(FILE *Ptr)
+void RelatorioEstoque(void)
 {
-	FILE *aux2 = fopen("aux2.dat","wb+");
-	BubbleSort(Ptr,aux2);
-	TpProduto RP;
-	fseek(aux2,0,2);
-	int TL = ftell(aux2);
-	rewind(aux2);
-	while(TL>0)
+	FILE *Ptr = fopen("Produtos.dat","rb+");
+	if(!ftell(Ptr) || Ptr == NULL )
+		printf("Nenhum Produto foi Cadastrado ou Arquivo Inexistente!\n");
+	else
 	{
-		fread(&RP,sizeof(RP),1,aux2);
-		printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
-		TL = TL - sizeof(RP);
-	}
-	fclose(aux2);
-}
-int MaiorPosDescr(FILE *Ptr,int TL)
-{
-	TpProduto RP;
-	int posmaior;
-	char maior[30];
-	fseek(Ptr,0,0);
-	fread(&RP,sizeof(RP),1,Ptr);
-	strcpy(maior,RP.Descr);
-	posmaior = 0;
-	while(ftell(Ptr) < TL)
-	{
-		fread(&RP,sizeof(RP),1,Ptr);
-		if(stricmp(maior,RP.Descr)<0)
+		FILE *aux = fopen("aux.dat","wb+");
+		BubbleSort(Ptr,aux);
+		TpProduto RP;
+		fseek(aux,0,2);
+		int TL = ftell(aux);
+		rewind(aux);
+		while(TL>0)
 		{
-			strcpy(maior,RP.Descr);
-			posmaior = ftell(Ptr) - sizeof(RP);
+			fread(&RP,sizeof(RP),1,aux);
+			printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
+			TL = TL - sizeof(RP);
 		}
+		fclose(aux);
 	}
-	return posmaior;
+	fclose(Ptr);
 }
-void SelecaoDiretaDescr(FILE *Ptr,FILE *aux2)
+void RelatorioDescr(void)
 {
-	TpProduto RP,arm[2];
-	int posmaior,TL;
-	fseek(Ptr,0,2);
-	TL = ftell(Ptr);
-	fseek(Ptr,0,0);
-	while(ftell(Ptr) != TL)
+	FILE *Ptr = fopen("Produtos.dat","rb+");
+	if(!ftell(Ptr) || Ptr == NULL )
+		printf("Nenhum Produto foi Cadastrado ou Arquivo Inexistente!\n");
 	{
-		fread(&RP,sizeof(RP),1,Ptr);
-		fwrite(&RP,sizeof(RP),1,aux2);			
-	}
-	while(TL>0)
-	{
-		posmaior = MaiorPosDescr(aux2,TL);
-		if(posmaior<TL-sizeof(RP))
+		FILE *aux = fopen("aux.dat","wb+");
+		SelecaoDireta(Ptr,aux,1);
+		TpProduto RP;
+		fseek(aux,0,2);
+		int TL = ftell(aux);
+		fseek(aux,0,0);
+		while(ftell(aux)!=TL)
 		{
-			fseek(aux2,posmaior,0);
-			fread(&arm[0],sizeof(arm[0]),1,aux2);
-			fseek(aux2,TL-sizeof(RP),0);
-			fread(&arm[1],sizeof(arm[1]),1,aux2); 
-			fseek(aux2,posmaior,0);
-			fwrite(&arm[1],sizeof(arm[1]),1,aux2);
-			fseek(aux2,TL-sizeof(RP),0);
-			fwrite(&arm[0],sizeof(arm[0]),1,aux2);
+			fread(&RP,sizeof(RP),1,aux);
+			printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
 		}
-		TL = TL - sizeof(RP);
+		fclose(aux);
 	}
+	fclose(Ptr);
 }
-void RelatorioDescr(FILE *Ptr)
+void ConsultaDescr(void)
 {
-	FILE *aux2 = fopen("aux2.dat","wb+");
-	SelecaoDiretaDescr(Ptr,aux2);
-	TpProduto RP;
-	fseek(aux2,0,2);
-	int TL = ftell(aux2);
-	while(TL>0)
+	FILE *Ptr = fopen("Produtos.dat","rb+");
+	if(!ftell(Ptr) || Ptr == NULL )
+		printf("Nenhum Produto foi Cadastrado ou Arquivo Inexistente!\n");
+	else
 	{
-		fseek(aux2,TL - sizeof(RP),0);
-		fread(&RP,sizeof(RP),1,aux2);
-		printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
-		TL = TL - sizeof(RP);
+		
+		TpProduto RP;
+		int pos;
+		char descr[20];
+		printf("Insira a descricao do produto a ser consultado!\nR: ");
+		gets(descr);
+		pos = BuscaSentinela(Ptr,descr,"Produtos.dat");
+		if(pos>=0)
+		{
+			fseek(Ptr,pos,0);
+			fread(&RP,sizeof(RP),1,Ptr);
+			printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
+			
+		}
+		else
+			printf("Produto não encontrado!")
 	}
-	fclose(aux2);
+	fclose(Ptr);
 }
