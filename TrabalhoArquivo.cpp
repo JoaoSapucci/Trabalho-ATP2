@@ -226,9 +226,113 @@ void RelatorioPreco(FILE *Ptr)
 	}
 	fclose(aux);
 }
+void BubbleSort(FILE *Ptr, FILE *aux2)
+{
+    TpProduto RA,RB,RP;
+    int a,b,qtd;
+    fseek(Ptr,0,2);
+    qtd=ftell(Ptr)/sizeof(TpProduto);
+    rewind(Ptr);
+    while(ftell(Ptr) < qtd*sizeof(TpProduto))
+    {
+        fread(&RP,sizeof(RP),1,Ptr);
+        fwrite(&RP,sizeof(RP),1,aux2);
+    }
+    for(a=0;a<qtd-1;a++)
+    {
+        for(b=0;b<qtd-1-a;b++)
+        {
+            fseek(aux2,b*sizeof(TpProduto),0);
+            fread(&RA,sizeof(TpProduto),1,aux2);
+            fread(&RB,sizeof(TpProduto),1,aux2);
 
-
-
-
-
-
+            if(RA.Estoque>RB.Estoque)
+            {
+                fseek(aux2,b*sizeof(TpProduto),0);
+                fwrite(&RB,sizeof(TpProduto),1,aux2);
+                fwrite(&RA,sizeof(TpProduto),1,aux2);
+            }
+        }
+    }
+}
+void RelatorioEstoque(FILE *Ptr)
+{
+	FILE *aux2 = fopen("aux2.dat","wb+");
+	BubbleSort(Ptr,aux2);
+	TpProduto RP;
+	fseek(aux2,0,2);
+	int TL = ftell(aux2);
+	rewind(aux2);
+	while(TL>0)
+	{
+		fread(&RP,sizeof(RP),1,aux2);
+		printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
+		TL = TL - sizeof(RP);
+	}
+	fclose(aux2);
+}
+int MaiorPosDescr(FILE *Ptr,int TL)
+{
+	TpProduto RP;
+	int posmaior;
+	char maior[30];
+	fseek(Ptr,0,0);
+	fread(&RP,sizeof(RP),1,Ptr);
+	strcpy(maior,RP.Descr);
+	posmaior = 0;
+	while(ftell(Ptr) < TL)
+	{
+		fread(&RP,sizeof(RP),1,Ptr);
+		if(stricmp(maior,RP.Descr)<0)
+		{
+			strcpy(maior,RP.Descr);
+			posmaior = ftell(Ptr) - sizeof(RP);
+		}
+	}
+	return posmaior;
+}
+void SelecaoDiretaDescr(FILE *Ptr,FILE *aux2)
+{
+	TpProduto RP,arm[2];
+	int posmaior,TL;
+	fseek(Ptr,0,2);
+	TL = ftell(Ptr);
+	fseek(Ptr,0,0);
+	while(ftell(Ptr) != TL)
+	{
+		fread(&RP,sizeof(RP),1,Ptr);
+		fwrite(&RP,sizeof(RP),1,aux2);			
+	}
+	while(TL>0)
+	{
+		posmaior = MaiorPosDescr(aux2,TL);
+		if(posmaior<TL-sizeof(RP))
+		{
+			fseek(aux2,posmaior,0);
+			fread(&arm[0],sizeof(arm[0]),1,aux2);
+			fseek(aux2,TL-sizeof(RP),0);
+			fread(&arm[1],sizeof(arm[1]),1,aux2); 
+			fseek(aux2,posmaior,0);
+			fwrite(&arm[1],sizeof(arm[1]),1,aux2);
+			fseek(aux2,TL-sizeof(RP),0);
+			fwrite(&arm[0],sizeof(arm[0]),1,aux2);
+		}
+		TL = TL - sizeof(RP);
+	}
+}
+void RelatorioDescr(FILE *Ptr)
+{
+	FILE *aux2 = fopen("aux2.dat","wb+");
+	SelecaoDiretaDescr(Ptr,aux2);
+	TpProduto RP;
+	fseek(aux2,0,2);
+	int TL = ftell(aux2);
+	while(TL>0)
+	{
+		fseek(aux2,TL - sizeof(RP),0);
+		fread(&RP,sizeof(RP),1,aux2);
+		printf("Codigo: %d\tEstoque: %d\nDescricao: %s\nPreco: %.2f",RP.CodProd,RP.Estoque,RP.Descr,RP.Preco);
+		TL = TL - sizeof(RP);
+	}
+	fclose(aux2);
+}
